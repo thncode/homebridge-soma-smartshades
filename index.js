@@ -6,7 +6,7 @@ var os = require("os");
 var hostname = os.hostname();
 a
 module.exports = function(homebridge) {
-    if(!isConfig(homebridge.user.configPath(), "accessories", "RaspberryPiInfo")) {
+    if(!isConfig(homebridge.user.configPath(), "accessories", "SomaSmartShades")) {
         return;
     }
     
@@ -16,7 +16,7 @@ module.exports = function(homebridge) {
     UUIDGen = homebridge.hap.uuid;
     FakeGatoHistoryService = require("fakegato-history")(homebridge);
 
-    homebridge.registerAccessory('homebridge-raspberrypi-info', 'RaspberryPiInfo', RaspberryPiTemperature);
+    homebridge.registerAccessory('homebridge-soma-smartshades', 'SomaSmartShades', SomaSmartShades);
 }
 
 function readUptime() {
@@ -51,7 +51,7 @@ function isConfig(configFile, type, name) {
     return false;
 };
 
-function RaspberryPiTemperature(log, config) {
+function SomaSmartShades(log, config) {
     if(null == config) {
         return;
     }
@@ -72,7 +72,7 @@ function RaspberryPiTemperature(log, config) {
 	this.setUpServices();
 };
 
-RaspberryPiTemperature.prototype.getUptime = function (callback) {
+SomaSmartShades.prototype.getUptime = function (callback) {
 	
 	var data = fs.readFileSync("/uptime.txt", "utf-8");
 	var uptime = data.substring(12, data.indexOf(",", data.indexOf(",", 0)+1));
@@ -80,7 +80,7 @@ RaspberryPiTemperature.prototype.getUptime = function (callback) {
 	callback(null, uptime);
 };
 
-RaspberryPiTemperature.prototype.getAvgLoad = function (callback) {
+SomaSmartShades.prototype.getAvgLoad = function (callback) {
 	
 	var data = fs.readFileSync("/uptime.txt", "utf-8");
 	var load = data.substring(data.length - 17);
@@ -88,7 +88,7 @@ RaspberryPiTemperature.prototype.getAvgLoad = function (callback) {
 	callback(null, load);
 };
 
-RaspberryPiTemperature.prototype.setUpServices = function () {
+SomaSmartShades.prototype.setUpServices = function () {
 
 	var that = this;
 	var temp;
@@ -161,7 +161,7 @@ RaspberryPiTemperature.prototype.setUpServices = function () {
 	});
 }
 
-RaspberryPiTemperature.prototype.getServices = function () {
+SomaSmartShades.prototype.getServices = function () {
 
 	return [this.infoService, this.fakeGatoHistoryService, this.raspberrypiService];
 };
