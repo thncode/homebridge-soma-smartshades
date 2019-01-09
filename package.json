@@ -1,0 +1,55 @@
+{
+  "_from": "homebridge-soma-smartshades",
+  "_id": "homebridge-soma-smartshades@0.0.1",
+  "_inBundle": false,
+  "_integrity": "sha512-3DZGUvz9wlg+peuXdtYGw13tpWM7h6CzJzYlFiH/G6K4c6TtiJs3am2XemrdwVkX1Ylma5bojqSpxV4PUye/BQ==",
+  "_location": "/homebridge-soma-smartshades",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "homebridge-soma-smartshades",
+    "name": "homebridge-soma-smartshades",
+    "escapedName": "homebridge-soma-smartshades",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER"
+  ],
+  "_resolved": "https://registry.npmjs.org/homebridge-soma-smartshades/-/homebridge-soma-smartshades-0.0.1.tgz",
+  "_shasum": "827f9cc3bee9ee821557f6a7677c5912750e14cf",
+  "_spec": "homebridge-soma-smartshades",
+  "_where": "/home/pi",
+  "author": {
+    "name": "Thomas Nemec"
+  },
+  "bugs": {
+    "url": "http://github.com/thncode/homebridge-soma-smartshades/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "fakegato-history": "^0.4.0",
+    "request": "^2.65.0"
+  },
+  "deprecated": false,
+  "description": "a homebridge(https://github.com/nfarina/homebridge) plugin that get RaspberryPi information.",
+  "engines": {
+    "homebridge": ">=0.4.1",
+    "node": ">=0.12.0"
+  },
+  "homepage": "https://github.com/thncode/homebridge-soma-smartshades",
+  "keywords": [
+    "homebridge-plugin",
+    "raspberrypi",
+    "raspberry-pi",
+    "temperature"
+  ],
+  "name": "homebridge-soma-smartshades",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/thncode/homebridge-soma-smartshades.git"
+  },
+  "version": "0.0.1"
+}
