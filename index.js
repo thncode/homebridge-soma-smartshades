@@ -1,167 +1,174 @@
-var Accessory, Service, Characteristic, UUIDGen, FakeGatoHistoryService;
-var inherits = require('util').inherits;
-const fs = require('fs');
-const packageFile = require("./package.json");
-var os = require("os");
-var hostname = os.hostname();
-a
+var request = require("request");
+var PythonShell = require('python-shell');
+
+var Service, Characteristic;
+
 module.exports = function(homebridge) {
-    if(!isConfig(homebridge.user.configPath(), "accessories", "SomaSmartShades")) {
-        return;
-    }
-    
-    Accessory = homebridge.platformAccessory;
-    Service = homebridge.hap.Service;
-    Characteristic = homebridge.hap.Characteristic;
-    UUIDGen = homebridge.hap.uuid;
-    FakeGatoHistoryService = require("fakegato-history")(homebridge);
+	console.log("homebridge API version: " + homebridge.version);
+  Service = homebridge.hap.Service;
+  Characteristic = homebridge.hap.Characteristic;
+  homebridge.registerAccessory("homebridge-window-cover", "WindowCover", WindowCover);
+};
 
-    homebridge.registerAccessory('homebridge-soma-smartshades', 'SomaSmartShades', SomaSmartShades);
+
+function WindowCover(log, config) {
+	this.service = new Service.WindowCovering(this.name);
+	this.log = log;
+	this.name = config.name || "Window cover";
+	this.id = config.id || 0;
+	this.pythonScriptPath = config.pythonScriptPath;
+	this.pythonScriptName = config.pythonScriptName;
+	this.apiroute = config.apiroute;
+
+
+	// Required Characteristics
+	this.currentPosition = 100;
+	this.targetPosition = 100;
+
+	//Characteristic.PositionState.DECREASING = 0;
+	//Characteristic.PositionState.INCREASING = 1;
+	//Characteristic.PositionState.STOPPED = 2;
+
+	this.positionState = Characteristic.PositionState.STOPPED;
+	this.service.setCharacteristic(Characteristic.PositionState, Characteristic.PositionState.STOPPED);
+
+	// Optional Characteristics
+	//this.holdPosition = Characteristic.HoldPosition;
+	//this.targetHorizontalTiltAngle = Characteristic.TargetHorizontalTiltAngle;
+	//this.targetVerticalTiltAngle = Characteristic.TargetVerticalTiltAngle;
+	//this.currentHorizontalTiltAngle = Characteristic.CurrentHorizontalTiltAngle;
+	//this.currentVerticalTiltAngle = Characteristic.CurrentVerticalTiltAngle;
+	//this.obstructionDetected = Characteristic.ObstructionDetected;
+
 }
 
-function readUptime() {
-	const exec = require('child_process').exec;
-	var script = exec('uptime > /uptime.txt',
-		(error, stdout, stderr) => {
-			if (error !== null) {
-				//this.log("exec error: " + ${error});
-			}
-		});			
-};
+WindowCover.prototype = {
+	//Start
+	identify: function(callback) {
+		this.log("Identify requested!");
+		callback(null);
+	},
+	// Required
+	getCurrentPosition: function(callback) {
+		this.log("getCurrentPosition:", this.currentPosition);
+		var error = null;
+		callback(error, this.currentPosition);
+	},
 
-function isConfig(configFile, type, name) {
-    var config = JSON.parse(fs.readFileSync(configFile));
-    if("accessories" === type) {
-        var accessories = config.accessories;
-        for(var i in accessories) {
-            if(accessories[i]['accessory'] === name) {
-                return true;
-            }
-        }
-    } else if("platforms" === type) {
-        var platforms = config.platforms;
-        for(var i in platforms) {
-            if(platforms[i]['platform'] === name) {
-                return true;
-            }
-        }
-    } else {
-    }
-    
-    return false;
-};
+	getName: function(callback) {
+		this.log("getName :", this.name);
+		var error = null;
+		callback(error, this.name);
+	},
 
-function SomaSmartShades(log, config) {
-    if(null == config) {
-        return;
-    }
+	getTargetPosition: function (callback) {
+		this.log("getTargetPosition :", this.targetPosition);
+		var error = null;
+		callback(error, this.targetPosition);
+	},
 
-    this.log = log;
-    this.name = config["name"];
-    if(config["file"]) {
-        this.readFile = config["file"];
-    } else {
-        this.readFile = "/sys/class/thermal/thermal_zone0/temp";
-    }
-    if(config["updateInterval"] && config["updateInterval"] > 0) {
-        this.updateInterval = config["updateInterval"];
-    } else {
-        this.updateInterval = null;
-    }
-  
-	this.setUpServices();
-};
+	setTargetPosition: function (value, callback) {
+		this.log("setTargetPosition from %s to %s", this.targetPosition, value);
+		this.targetPosition = value;
 
-SomaSmartShades.prototype.getUptime = function (callback) {
+		if(this.targetPosition > this.currentPosition) {
+			this.service.setCharacteristic(Characteristic.PositionState, Characteristic.PositionState.INCREASING);
+		} else if(this.targetPosition < this.currentPosition) {
+			this.service.setCharacteristic(Characteristic.PositionState, Characteristic.PositionState.DECREASING);
+		} else if(this.targetPosition = this.currentPosition) {
+			this.service.setCharacteristic(Characteristic.PositionState, Characteristic.PositionState.STOPPED);
+		}		
+
+		//PYTHON 
+		if(this.pythonScriptPath !== undefined) {
+
+			var options = {};
+			options.args = this.targetPosition;
+			options.scriptPath = this.pythonScriptPath
+
+			PythonShell.run(this.pythonScriptName, options, function (err, results) {
+			  	if (err) {
+			  		this.log("Script Error", options.scriptPath, options.args, err);
+			  	 	callback(err);
+			  	} else {
+					// results is an array consisting of messages collected during execution
+				  	console.log('Success ! Results: %j', results);
+				  	this.currentPosition = this.targetPosition;
+				  	this.service.setCharacteristic(Characteristic.CurrentPosition, this.currentPosition);
+				  	this.log("currentPosition is now %s", this.currentPosition);
+					this.service.setCharacteristic(Characteristic.PositionState, Characteristic.PositionState.STOPPED);
+				  	callback(null); // success
+			  	}
+			}.bind(this));
+		} else if (this.apiroute !== undefined) {
+			//HTTP API ACTION
+			var url = this.apiroute + "/targetposition/"+ this.id + "/" + this.targetPosition;
+			this.log("GET", url);
+			request.get({
+				url: url
+			}, function(err, response, body) {
+				if (!err && response.statusCode == 200) {
+					this.log("Response success");
+					this.currentPosition = this.targetPosition;
+					this.service.setCharacteristic(Characteristic.CurrentPosition, this.currentPosition);
+					this.log("currentPosition is now %s", this.currentPosition);
+					this.service.setCharacteristic(Characteristic.PositionState, Characteristic.PositionState.STOPPED);
+					//doSuccess.bind(this);
+					callback(null); // success
+				} else {
+					this.log("Response error" , err);
+					callback(err);
+				}
+			}.bind(this));
+		} else {
+			//FAKE SUCCESS
+			this.log("Fake Success");
+			this.currentPosition = this.targetPosition;
+			this.service.setCharacteristic(Characteristic.CurrentPosition, this.currentPosition);
+			this.log("currentPosition is now %s", this.currentPosition);
+			this.service.setCharacteristic(Characteristic.PositionState, Characteristic.PositionState.STOPPED);
+			callback(null); // success
+		}
+	},
+
+	getPositionState: function(callback) {
+		this.log("getPositionState :", this.positionState);
+		var error = null;
+		callback(error, this.positionState);
+	},
+
+	getServices: function() {
+
+		// you can OPTIONALLY create an information service if you wish to override
+		// the default values for things like serial number, model, etc.
+		var informationService = new Service.AccessoryInformation();
+
+		informationService
+			.setCharacteristic(Characteristic.Manufacturer, "HTTP Manufacturer")
+			.setCharacteristic(Characteristic.Model, "HTTP Model")
+			.setCharacteristic(Characteristic.SerialNumber, "HTTP Serial Number");
+
+		this.service
+			.getCharacteristic(Characteristic.Name)
+			.on('get', this.getName.bind(this));
+
+		// Required Characteristics
+		this.service
+			.getCharacteristic(Characteristic.CurrentPosition)
+			.on('get', this.getCurrentPosition.bind(this));
+
+ 		this.service
+			.getCharacteristic(Characteristic.TargetPosition)
+			.on('get', this.getTargetPosition.bind(this))
+			.on('set', this.setTargetPosition.bind(this));
+
+		this.service
+			.getCharacteristic(Characteristic.PositionState)
+			.on('get', this.getPositionState.bind(this));
+
+		// Optional Characteristics
+		//TODO
 	
-	var data = fs.readFileSync("/uptime.txt", "utf-8");
-	var uptime = data.substring(12, data.indexOf(",", data.indexOf(",", 0)+1));
-		
-	callback(null, uptime);
-};
-
-SomaSmartShades.prototype.getAvgLoad = function (callback) {
-	
-	var data = fs.readFileSync("/uptime.txt", "utf-8");
-	var load = data.substring(data.length - 17);
-		
-	callback(null, load);
-};
-
-SomaSmartShades.prototype.setUpServices = function () {
-
-	var that = this;
-	var temp;
-	
-	this.infoService = new Service.AccessoryInformation();
-	this.infoService
-		.setCharacteristic(Characteristic.Manufacturer, "RaspberryPi")
-		.setCharacteristic(Characteristic.Model, "3B")
-		.setCharacteristic(Characteristic.SerialNumber, hostname + "-" + this.name)
-		.setCharacteristic(Characteristic.FirmwareRevision, packageFile.version);
-	
-	this.fakeGatoHistoryService = new FakeGatoHistoryService("weather", this, { storage: 'fs' });
-	
-	let uuid1 = UUIDGen.generate(that.name + '-Uptime');
-	info = function (displayName, subtype) {
-		Characteristic.call(this, 'Uptime', uuid1);
-		this.setProps({
-			format: Characteristic.Formats.STRING,
-			perms: [Characteristic.Perms.READ, Characteristic.Perms.NOTIFY]
-		});
-		this.value = this.getDefaultValue();
-	};
-	inherits(info, Characteristic);
-	info.UUID = uuid1;
-
-	let uuid2 = UUIDGen.generate(that.name + '-AvgLoad');
-	load = function () {
-		Characteristic.call(this, 'Average Load', uuid2);
-		this.setProps({
-			format: Characteristic.Formats.STRING,
-			perms: [Characteristic.Perms.READ, Characteristic.Perms.NOTIFY]
-		});
-		this.value = this.getDefaultValue();
-	};
-	inherits(load, Characteristic);
-	load.UUID = uuid2;
-	
-	this.raspberrypiService = new Service.TemperatureSensor(that.name);
-	var currentTemperatureCharacteristic = this.raspberrypiService.getCharacteristic(Characteristic.CurrentTemperature);
-	this.raspberrypiService.getCharacteristic(info)
-		.on('get', this.getUptime.bind(this));
-	this.raspberrypiService.getCharacteristic(load)
-		.on('get', this.getAvgLoad.bind(this));
-	
-	function getCurrentTemperature() {
-		var data = fs.readFileSync(that.readFile, "utf-8");
-		var temperatureVal = parseFloat(data) / 1000;
-		temp = temperatureVal;
-		that.log.debug("update currentTemperatureCharacteristic value: " + temperatureVal);
-		return temperatureVal;
+		return [informationService, this.service];
 	}
-	
-	readUptime();
-	
-	currentTemperatureCharacteristic.updateValue(getCurrentTemperature());
-	if(that.updateInterval) {
-		setInterval(() => {
-			currentTemperatureCharacteristic.updateValue(getCurrentTemperature());
-			
-			that.log("Raspberry Temperatur: " + temp);
-			this.fakeGatoHistoryService.addEntry({time: new Date().getTime() / 1000, temp: temp});
-			
-			readUptime();
-			
-		}, that.updateInterval * 1000);
-	}
-	
-	currentTemperatureCharacteristic.on('get', (callback) => {
-		callback(null, getCurrentTemperature());
-	});
-}
-
-SomaSmartShades.prototype.getServices = function () {
-
-	return [this.infoService, this.fakeGatoHistoryService, this.raspberrypiService];
 };
