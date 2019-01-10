@@ -1,5 +1,5 @@
 {
-  "name": "homebridge-window-cover",
+  "name": "homebridge-some-smartshades",
   "version": "1.0.1",
   "description": "Homebridge Soma Smartshades Plugin",
   "main": "index.js",
