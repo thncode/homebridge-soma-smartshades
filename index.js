@@ -7,11 +7,11 @@ module.exports = function(homebridge) {
 	console.log("homebridge API version: " + homebridge.version);
   Service = homebridge.hap.Service;
   Characteristic = homebridge.hap.Characteristic;
-  homebridge.registerAccessory("homebridge-window-cover", "WindowCover", WindowCover);
+  homebridge.registerAccessory("homebridge-soma-smartshades", "SmartShades", SmartShades);
 };
 
 
-function WindowCover(log, config) {
+function SmartShades(log, config) {
 	this.service = new Service.WindowCovering(this.name);
 	this.log = log;
 	this.name = config.name || "Window cover";
@@ -42,7 +42,7 @@ function WindowCover(log, config) {
 
 }
 
-WindowCover.prototype = {
+SmartShades.prototype = {
 	//Start
 	identify: function(callback) {
 		this.log("Identify requested!");
